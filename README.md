@@ -1,18 +1,12 @@
-# setup-opentofu
+# GitHub Action for setting up OpenTofu
 
-The `opentofu/setup-opentofu` action sets up OpenTofu CLI in your GitHub Actions workflow by:
+> [!NOTE]
+> This is a community-maintained repository. The OpenTofu team does not fix non-critical bugs or add features, but is happy to review community pull requests.
 
-- Downloading the latest version of OpenTofu CLI and adding it to the `PATH`.
-- Configuring the [CLI configuration file](https://opentofu.org/docs/cli/config/config-file/) with a Terraform Cloud/Enterprise hostname and API token.
-- Installing a wrapper script to wrap subsequent calls of the `tofu` binary and expose its STDOUT, STDERR, and exit code as outputs named `stdout`, `stderr`, and `exitcode` respectively. (This can be optionally skipped if subsequent steps in the same job do not need to access the results of
-  OpenTofu commands.)
+> [!TIP]
+> Having trouble with exit codes or the output format? Try setting the `tofu_wrapper` setting to `false`.
 
-After you've used the action, subsequent steps in the same job can run arbitrary OpenTofu commands using [the GitHub Actions `run` syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun). This allows most OpenTofu commands to work exactly
-like they do on your local command line.
-
-## Experimental Status
-
-By using the software in this repository (the "Software"), you acknowledge that: (1) the Software is still in development, may change, and has not been released as a commercial product by OpenTofu; (2) the Software is provided on an "as-is" basis, and may include bugs, errors, or other issues; (3) the Software is NOT INTENDED FOR PRODUCTION USE, use of the Software may result in unexpected results, loss of data, or other unexpected results, and OpenTofu disclaims any and all liability resulting from use of the Software.
+The `opentofu/setup-opentofu` action sets up OpenTofu CLI in GitHub Actions.
 
 ## Usage
 
@@ -22,23 +16,34 @@ The default configuration installs the latest version of OpenTofu CLI and instal
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
 ```
 
 A specific version of OpenTofu CLI can be installed:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
   with:
-    tofu_version: 1.6.0-alpha1
+    tofu_version: 1.6.0
 ```
+
+You can also specify the version in a file (e.g., `.opentofu-version`):
+
+```yaml
+steps:
+  - uses: opentofu/setup-opentofu@v1
+    with:
+      tofu_version_file: .opentofu-version
+```
+
+Supported version syntax is the same as for the `tofu_version` input. If both `tofu_version` and `tofu_version_file` are provided, the version number in the file takes precedence.
 
 Credentials for Terraform Cloud ([app.terraform.io](https://app.terraform.io/)) can be configured:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
   with:
     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 ```
@@ -47,7 +52,7 @@ Credentials for Terraform Enterprise (TFE) can be configured:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
   with:
     cli_config_credentials_hostname: 'tofu.example.com'
     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
@@ -57,7 +62,7 @@ The wrapper script installation can be skipped by setting the `tofu_wrapper` var
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
   with:
     tofu_wrapper: false
 ```
@@ -66,7 +71,7 @@ Subsequent steps can access outputs when the wrapper script is installed:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
 
 - run: tofu init
 
@@ -94,7 +99,7 @@ permissions:
   pull-requests: write
 steps:
 - uses: actions/checkout@v3
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
 
 - name: OpenTofu fmt
   id: fmt
@@ -162,7 +167,7 @@ permissions:
   pull-requests: write
 steps:
 - uses: actions/checkout@v3
-- uses: opentofu/setup-opentofu
+- uses: opentofu/setup-opentofu@v1
 
 - name: OpenTofu fmt
   id: fmt
@@ -254,9 +259,12 @@ The action supports the following inputs:
   for available range specifications). Examples are: `<1.6.0-beta`, `~1.6.0-alpha`, `1.6.0-alpha2` (all three installing
   the latest available `1.6.0-alpha2` version). Prerelease versions can be specified and a range will stay within the
   given tag such as `beta` or `rc`. If no version is given, it will default to `latest`.
+- `tofu_version_file` - (optional) Path to a file containing the OpenTofu version to install. Supported version syntax
+  is the same as for the `tofu_version` input. Takes precedence over `tofu_version` if both are provided.
 - `tofu_wrapper` - (optional) Whether to install a wrapper to wrap subsequent calls of
   the `tofu` binary and expose its STDOUT, STDERR, and exit code as outputs
   named `stdout`, `stderr`, and `exitcode` respectively. Defaults to `true`.
+- `github_token` - (optional) Override the GitHub token read from the environment variable. Defaults to the value of the `GITHUB_TOKEN` environment variable unless running on Forgejo or Gitea.
 
 ## Outputs
 
@@ -271,6 +279,3 @@ to `true`, the following outputs are available for subsequent steps that call th
 
 [Mozilla Public License v2.0](LICENSE)
 
-## Code of Conduct
-
-[Code of Conduct](CODE_OF_CONDUCT.md)

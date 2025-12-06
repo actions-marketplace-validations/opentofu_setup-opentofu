@@ -10,14 +10,36 @@ defaults:
   run:
     shell: bash
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
+  tofu-version-files:
+    name: 'OpenTofu Version Files'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        tofu-version-files: ['./.github/workflows/data/local/.opentofu-version']
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup OpenTofu - ${{ matrix['tofu-version-files'] }}
+      uses: ./
+      with:
+        tofu_version_file: ${{ matrix['tofu-version-files'] }}
+        tofu_wrapper: false
+
+    - name: Validate that OpenTofu was installed
+      run: tofu version | grep 'OpenTofu v'
   tofu-versions:
     name: 'OpenTofu Versions'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        tofu-versions: [1.6.0-alpha1, latest]
+        tofu-versions: [1.6.0, latest]
         tofu-wrapper: [true, false]
     steps:
     - name: Checkout
@@ -77,6 +99,7 @@ jobs:
         tofu-wrapper: [true, false]
     defaults:
       run:
+        shell: bash
         working-directory: ./.github/workflows/data/local
     steps:
     - name: Checkout
@@ -181,4 +204,3 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           [[ -f ${HOME}/.tofurc ]] || exit 0
-
