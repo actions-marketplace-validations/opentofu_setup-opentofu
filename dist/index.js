@@ -257,6 +257,7 @@ async function run () {
     const credentialsHostname = core.getInput('cli_config_credentials_hostname');
     const credentialsToken = core.getInput('cli_config_credentials_token');
     const wrapper = core.getInput('tofu_wrapper') === 'true';
+    const useCache = core.getInput('cache') === 'true';
     let githubToken = core.getInput('github_token');
     if (githubToken === '' && !(process.env.FORGEJO_ACTIONS || process.env.GITEA_ACTIONS)) {
       // Only default to the environment variable when running in GitHub Actions. Don't do this for other CI systems
@@ -298,8 +299,22 @@ async function run () {
       throw new Error(`OpenTofu version ${version} not available for ${platform} and ${arch}`);
     }
 
-    // Download requested version
-    const pathToCLI = await downloadAndExtractCLI(build.url);
+    // Download requested version if not cached
+    let pathToCLI;
+    if (useCache) {
+      const cachedPath = tc.find('tofu', release.version, arch);
+      if (cachedPath) {
+        core.debug(`Using cached OpenTofu version ${release.version} from ${cachedPath}`);
+        pathToCLI = cachedPath;
+      } else {
+        core.debug(`OpenTofu version ${release.version} not found in cache, downloading...`);
+        const extractedPath = await downloadAndExtractCLI(build.url);
+        core.debug(`Caching OpenTofu version ${release.version} to tool cache`);
+        pathToCLI = await tc.cacheDir(extractedPath, 'tofu', release.version, arch);
+      }
+    } else {
+      pathToCLI = await downloadAndExtractCLI(build.url);
+    }
 
     // Install our wrapper
     if (wrapper) {
@@ -1795,7 +1810,7 @@ class HttpClient {
         this._maxRetries = 1;
         this._keepAlive = false;
         this._disposed = false;
-        this.userAgent = userAgent;
+        this.userAgent = this._getUserAgentWithOrchestrationId(userAgent);
         this.handlers = handlers || [];
         this.requestOptions = requestOptions;
         if (requestOptions) {
@@ -2274,6 +2289,17 @@ class HttpClient {
             });
         }
         return proxyAgent;
+    }
+    _getUserAgentWithOrchestrationId(userAgent) {
+        const baseUserAgent = userAgent || 'actions/http-client';
+        const orchId = process.env['ACTIONS_ORCHESTRATION_ID'];
+        if (orchId) {
+            // Sanitize the orchestration ID to ensure it contains only valid characters
+            // Valid characters: 0-9, a-z, _, -, .
+            const sanitizedId = orchId.replace(/[^a-z0-9_.-]/gi, '_');
+            return `${baseUserAgent} actions_orchestration_id/${sanitizedId}`;
+        }
+        return baseUserAgent;
     }
     _performExponentialBackoff(retryNumber) {
         return __awaiter(this, void 0, void 0, function* () {
