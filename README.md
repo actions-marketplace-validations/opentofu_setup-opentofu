@@ -16,14 +16,14 @@ The default configuration installs the latest version of OpenTofu CLI and instal
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
 ```
 
 A specific version of OpenTofu CLI can be installed:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
   with:
     tofu_version: 1.6.0
 ```
@@ -32,10 +32,15 @@ You can also specify the version in a file (e.g., `.opentofu-version`):
 
 ```yaml
 steps:
-  - uses: opentofu/setup-opentofu@v1
+  - uses: opentofu/setup-opentofu@v2
     with:
       tofu_version_file: .opentofu-version
 ```
+
+`tofu_version_file` accepts two formats:
+
+- A single-line file containing just the version (e.g., `.opentofu-version` with `1.9.0`).
+- An asdf-format `.tool-versions` file containing an `opentofu <version>` line. Other tool entries in the same file are ignored.
 
 Supported version syntax is the same as for the `tofu_version` input. If both `tofu_version` and `tofu_version_file` are provided, the version number in the file takes precedence.
 
@@ -43,7 +48,7 @@ Credentials for Terraform Cloud ([app.terraform.io](https://app.terraform.io/)) 
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
   with:
     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 ```
@@ -52,7 +57,7 @@ Credentials for Terraform Enterprise (TFE) can be configured:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
   with:
     cli_config_credentials_hostname: 'tofu.example.com'
     cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
@@ -62,7 +67,7 @@ The wrapper script installation can be skipped by setting the `tofu_wrapper` var
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
   with:
     tofu_wrapper: false
 ```
@@ -71,16 +76,42 @@ Caching can be enabled to reduce download time on subsequent workflow runs by st
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
   with:
     cache: true
+```
+
+Provider acceptance test environment variables can be configured automatically by setting `provider_acceptance_tests` to `true`. This exports `TF_ACC`, `TF_ACC_PROVIDER_NAMESPACE`, `TF_ACC_PROVIDER_HOST`, and `TF_ACC_TERRAFORM_PATH` so you don't need to set them manually:
+
+```yaml
+steps:
+- uses: opentofu/setup-opentofu@v2
+  with:
+    tofu_wrapper: false
+    provider_acceptance_tests: true
+- run: go mod download
+- run: go test -v -cover ./...
+  timeout-minutes: 10
+```
+
+By default, the action verifies the downloaded OpenTofu CLI ZIP against the SHA-256 checksum published in the release's `SHA256SUMS` file, so the default install path is verified out of the box. Verification is skipped (with a warning) only when the published checksum cannot be retrieved.
+
+To pin the expected hashes yourself instead, pass a newline-delimited list of checksums. When set, this list takes precedence over the published `SHA256SUMS`:
+
+```yaml
+steps:
+- uses: opentofu/setup-opentofu@v2
+  with:
+    checksums: |
+    933b060ab1cf05b106e94af1d370fd14b3006a6845495a67c68734269cc705ad
+    d3d29f51e75a701fc7cf67c0644a8c883a85f36cf1621461988baffd88e7f361
 ```
 
 Subsequent steps can access outputs when the wrapper script is installed:
 
 ```yaml
 steps:
-- uses: opentofu/setup-opentofu@v1
+- uses: opentofu/setup-opentofu@v2
 
 - run: tofu init
 
@@ -107,8 +138,8 @@ defaults:
 permissions:
   pull-requests: write
 steps:
-- uses: actions/checkout@v3
-- uses: opentofu/setup-opentofu@v1
+- uses: actions/checkout@v6
+- uses: opentofu/setup-opentofu@v2
 
 - name: OpenTofu fmt
   id: fmt
@@ -175,8 +206,8 @@ defaults:
 permissions:
   pull-requests: write
 steps:
-- uses: actions/checkout@v3
-- uses: opentofu/setup-opentofu@v1
+- uses: actions/checkout@v6
+- uses: opentofu/setup-opentofu@v2
 
 - name: OpenTofu fmt
   id: fmt
@@ -274,7 +305,12 @@ The action supports the following inputs:
   the `tofu` binary and expose its STDOUT, STDERR, and exit code as outputs
   named `stdout`, `stderr`, and `exitcode` respectively. Defaults to `true`.
 - `cache` - (optional) Whether to use GitHub Actions tool-cache to store and reuse downloaded OpenTofu binaries. Defaults to `false`.
+- `provider_acceptance_tests` - (optional) Whether to automatically set environment variables for running
+  OpenTofu provider acceptance tests. When set to `true`, the following environment variables are exported:
+  `TF_ACC=1`, `TF_ACC_PROVIDER_NAMESPACE=hashicorp`, `TF_ACC_PROVIDER_HOST=registry.opentofu.org`, and
+  `TF_ACC_TERRAFORM_PATH=<path to tofu binary>`. Defaults to `false`.
 - `github_token` - (optional) Override the GitHub token read from the environment variable. Defaults to the value of the `GITHUB_TOKEN` environment variable unless running on Forgejo or Gitea.
+- `checksums` - (optional) A newline-delimited list of valid checksums (SHA256) for the downloaded OpenTofu CLI ZIP. When set, the action will verify the ZIP matches one of the checksums before proceeding. When unset, the action verifies the ZIP against the SHA-256 checksum published in the release's `SHA256SUMS` file by default. Defaults to `[]`
 
 ## Outputs
 
